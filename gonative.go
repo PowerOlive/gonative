@@ -172,7 +172,7 @@ func Build(opts *Options) error {
 	// bootstrap compilers for all target platforms
 	Log.Info("boostraping go compilers")
 	for _, p := range opts.Platforms {
-		err = distBootstrap(targetPath, p)
+		err = makeBootstrap(targetPath, p)
 		Log.Debug("bootstrap compiler", "plat", p, "err", err)
 		if err != nil {
 			return err
@@ -269,25 +269,23 @@ func makeDotBash(goRoot string) (err error) {
 	return cmd.Run()
 }
 
-// runs dist bootrap to build the compilers for a target platform
-func distBootstrap(goRoot string, p Platform) (err error) {
-	// the dist tool gets put in the pkg/tool/{host_platform} directory after we've built
-	// the compilers/stdlib for the host platform
-	hostPlatform := Platform{runtime.GOOS, runtime.GOARCH}
-	scriptPath, err := filepath.Abs(filepath.Join(goRoot, "pkg", "tool", hostPlatform.String(), "dist"))
-	if err != nil {
-		return
+// runs make.bash to build the compilers and tools for a target platform
+func makeBootstrap(goRoot string, p Platform) (err error) {
+	scriptName := "make.bash"
+	if runtime.GOOS == "windows" {
+		scriptName = "make.bat"
 	}
 
 	// but we want to run it from the src directory
-	scriptDir, err := filepath.Abs(filepath.Join(goRoot, "src"))
+	scriptPath, err := filepath.Abs(filepath.Join(goRoot, "src", scriptName))
 	if err != nil {
 		return
 	}
+	scriptDir := filepath.Dir(scriptPath)
 
 	bootstrapCmd := exec.Cmd{
 		Path: scriptPath,
-		Args: []string{scriptPath, "bootstrap", "-v"},
+		Args: []string{scriptPath, "--no-clean"},
 		Env: append(os.Environ(),
 			"GOOS="+p.OS,
 			"GOARCH="+p.Arch),
